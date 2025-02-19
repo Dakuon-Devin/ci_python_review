@@ -50,7 +50,7 @@ jobs:
           bandit -r -f txt -ll src/example/bad_code.py >> bandit.log 2>&1 || exit 1
 
       - name: Post Review Comment
-        if: always()
+        if: success() || failure()
         run: |
           {
             echo "# Pythonコードレビュー結果"
@@ -66,14 +66,12 @@ jobs:
             echo ""
             echo "## 4. Banditによるセキュリティチェック"
             cat bandit.log
+            echo ""
+            if [ ${{ job.status }} == 'failure' ]; then
+              echo "⚠️ **CIチェックが失敗しました。上記の問題を修正してください。**"
+            fi
           } > review.log
 
           gh pr comment --body-file review.log "${{ github.event.pull_request.html_url }}"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Post review comment
-        if: failure()
-        run: gh pr comment --body-file review.log "${{ github.event.pull_request.html_url }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
