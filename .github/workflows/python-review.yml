@@ -25,31 +25,39 @@ jobs:
           python -m pip install --upgrade pip
           pip install ruff black mypy bandit
       
-      - name: Run Ruff
+      - name: Run Checks
+        id: run_checks
         run: |
+          # Ruff
           echo "## Ruffによるコードスタイルチェック" > ruff.log
-          ruff check . >> ruff.log 2>&1 || true
+          ruff check . >> ruff.log 2>&1 || echo "Ruff check failed"
 
-      - name: Run Black
-        run: |
-          echo "## Blackによるコードフォーマットチェック" > black.log
-          black --check --diff . >> black.log 2>&1 || true
+          # Black
+          echo -e "\n## Blackによるコードフォーマットチェック" > black.log
+          black --check --diff . >> black.log 2>&1 || echo "Black check failed"
 
-      - name: Run MyPy
-        run: |
-          echo "## MyPyによる型チェック" > mypy.log
-          mypy --show-error-codes --show-column-numbers --show-error-context src/example/bad_code.py >> mypy.log 2>&1 || true
+          # MyPy
+          echo -e "\n## MyPyによる型チェック" > mypy.log
+          mypy --show-error-codes --show-column-numbers --pretty src/example/bad_code.py >> mypy.log 2>&1 || echo "MyPy check failed"
 
-      - name: Run Bandit
-        run: |
-          echo "## Banditによるセキュリティチェック" > bandit.log
-          bandit -r -f txt --severity-level low src/example/bad_code.py >> bandit.log 2>&1 || true
+          # Bandit
+          echo -e "\n## Banditによるセキュリティチェック" > bandit.log
+          bandit -r -f txt --severity-level low -ll src/example/bad_code.py >> bandit.log 2>&1 || echo "Bandit check failed"
 
-      - name: Combine Reports
-        run: |
-          echo "# Pythonコードレビュー結果" > review.log
-          echo "" >> review.log
-          cat ruff.log black.log mypy.log bandit.log >> review.log
+          # Combine all reports with proper spacing
+          {
+            echo "# Pythonコードレビュー結果"
+            echo ""
+            cat ruff.log
+            echo ""
+            cat black.log
+            echo ""
+            cat mypy.log
+            echo ""
+            cat bandit.log
+          } > review.log
+
+          exit 1
       
       - name: Post review comment
         if: failure()
