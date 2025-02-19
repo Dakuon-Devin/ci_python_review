@@ -24,64 +24,75 @@ jobs:
           python -m pip install --upgrade pip
           pip install ruff black mypy bandit
       
-      - name: Run Ruff linter
-        id: ruff
-        continue-on-error: true
+      - name: Run checks and collect results
+        id: checks
         run: |
-          OUTPUT=$(ruff check . 2>&1) || echo "::set-output name=error::$OUTPUT"
-      
-      - name: Run Black formatter check
-        id: black
-        continue-on-error: true
-        run: |
-          OUTPUT=$(black --check . 2>&1) || echo "::set-output name=error::$OUTPUT"
-      
-      - name: Run MyPy type checker
-        id: mypy
-        continue-on-error: true
-        run: |
-          OUTPUT=$(mypy . 2>&1) || echo "::set-output name=error::$OUTPUT"
-      
-      - name: Run Bandit security check
-        id: bandit
-        continue-on-error: true
-        run: |
-          OUTPUT=$(bandit -r . -ll 2>&1) || echo "::set-output name=error::$OUTPUT"
+          # Initialize error collection
+          echo "ERRORS_FOUND=false" >> $GITHUB_ENV
+          echo "ERROR_DETAILS=" >> $GITHUB_ENV
+          
+          # Run Ruff
+          if ! RUFF_OUT=$(ruff check . 2>&1); then
+            echo "ERRORS_FOUND=true" >> $GITHUB_ENV
+            echo "ERROR_DETAILS<<EOF" >> $GITHUB_ENV
+            echo "### Ruff Linter" >> $GITHUB_ENV
+            echo '```' >> $GITHUB_ENV
+            echo "$RUFF_OUT" >> $GITHUB_ENV
+            echo '```' >> $GITHUB_ENV
+            echo "" >> $GITHUB_ENV
+          fi
+          
+          # Run Black
+          if ! BLACK_OUT=$(black --check . 2>&1); then
+            echo "ERRORS_FOUND=true" >> $GITHUB_ENV
+            echo "ERROR_DETAILS<<EOF" >> $GITHUB_ENV
+            echo "### Black Formatter" >> $GITHUB_ENV
+            echo '```' >> $GITHUB_ENV
+            echo "$BLACK_OUT" >> $GITHUB_ENV
+            echo '```' >> $GITHUB_ENV
+            echo "" >> $GITHUB_ENV
+          fi
+          
+          # Run MyPy
+          if ! MYPY_OUT=$(mypy . 2>&1); then
+            echo "ERRORS_FOUND=true" >> $GITHUB_ENV
+            echo "ERROR_DETAILS<<EOF" >> $GITHUB_ENV
+            echo "### MyPy Type Checker" >> $GITHUB_ENV
+            echo '```' >> $GITHUB_ENV
+            echo "$MYPY_OUT" >> $GITHUB_ENV
+            echo '```' >> $GITHUB_ENV
+            echo "" >> $GITHUB_ENV
+          fi
+          
+          # Run Bandit
+          if ! BANDIT_OUT=$(bandit -r . -ll 2>&1); then
+            echo "ERRORS_FOUND=true" >> $GITHUB_ENV
+            echo "ERROR_DETAILS<<EOF" >> $GITHUB_ENV
+            echo "### Bandit Security Check" >> $GITHUB_ENV
+            echo '```' >> $GITHUB_ENV
+            echo "$BANDIT_OUT" >> $GITHUB_ENV
+            echo '```' >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
+          fi
+          
+          # Exit with error if any check failed
+          if [ "$ERRORS_FOUND" = "true" ]; then
+            exit 1
+          fi
       
       - name: Create review comment
-        if: |
-          steps.ruff.outcome == 'failure' ||
-          steps.black.outcome == 'failure' ||
-          steps.mypy.outcome == 'failure' ||
-          steps.bandit.outcome == 'failure'
+        if: failure()
         uses: actions/github-script@v7
         with:
           script: |
-            const errors = [];
-            
-            if (process.env.RUFF_ERROR) {
-              errors.push('### Ruff Linter\n```\n' + process.env.RUFF_ERROR + '\n```');
-            }
-            if (process.env.BLACK_ERROR) {
-              errors.push('### Black Formatter\n```\n' + process.env.BLACK_ERROR + '\n```');
-            }
-            if (process.env.MYPY_ERROR) {
-              errors.push('### MyPy Type Checker\n```\n' + process.env.MYPY_ERROR + '\n```');
-            }
-            if (process.env.BANDIT_ERROR) {
-              errors.push('### Bandit Security Check\n```\n' + process.env.BANDIT_ERROR + '\n```');
-            }
-            
-            if (errors.length > 0) {
-              const body = '## Pythonコードレビュー結果\n\n' + errors.join('\n\n');
-              await github.rest.pulls.createReview({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: context.issue.number,
-                body: body,
-                event: 'REQUEST_CHANGES'
-              });
-            }
+            const body = '## Pythonコードレビュー結果\n\n' + process.env.ERROR_DETAILS;
+            await github.rest.pulls.createReview({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              body: body,
+              event: 'REQUEST_CHANGES'
+            });
         env:
           RUFF_ERROR: ${{ steps.ruff.outputs.error }}
           BLACK_ERROR: ${{ steps.black.outputs.error }}
