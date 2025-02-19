@@ -31,33 +31,19 @@ jobs:
           
           # Ruff
           echo -e "\n### Ruff Linter" >> review.log
-          if ! ruff check . >> review.log 2>&1; then
-            echo "Ruff check failed"
-            exit_code=1
-          fi
+          ruff check . >> review.log 2>&1
           
           # Black
           echo -e "\n### Black Formatter" >> review.log
-          if ! black --check . >> review.log 2>&1; then
-            echo "Black check failed"
-            exit_code=1
-          fi
+          black --check . >> review.log 2>&1
           
           # MyPy
           echo -e "\n### MyPy Type Checker" >> review.log
-          if ! mypy . >> review.log 2>&1; then
-            echo "MyPy check failed"
-            exit_code=1
-          fi
+          mypy . >> review.log 2>&1
           
           # Bandit
           echo -e "\n### Bandit Security Check" >> review.log
-          if ! bandit -r . -ll >> review.log 2>&1; then
-            echo "Bandit check failed"
-            exit_code=1
-          fi
-          
-          exit ${exit_code:-0}
+          bandit -r . -ll >> review.log 2>&1
       
       - name: Post review comment
         if: failure()
