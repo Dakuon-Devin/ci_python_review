@@ -41,13 +41,13 @@ jobs:
         id: mypy
         run: |
           echo "## MyPyによる型チェック" > mypy.log
-          mypy --strict --show-error-codes --show-column-numbers --pretty src/example/bad_code.py >> mypy.log 2>&1 || exit 1
+          mypy --strict --show-error-codes --show-column-numbers --pretty src/example/ >> mypy.log 2>&1 || exit 1
 
       - name: Run Bandit
         id: bandit
         run: |
           echo "## Banditによるセキュリティチェック" > bandit.log
-          bandit -r -f txt -ll src/example/bad_code.py >> bandit.log 2>&1 || exit 1
+          bandit -r -f txt -ll src/example/ >> bandit.log 2>&1 || exit 1
 
       - name: Post Review Comment
         if: always()
