@@ -31,7 +31,7 @@ jobs:
           
           # Ruff
           echo -e "\n### Ruff Linter" >> review.log
-          ruff check --format=text . >> review.log 2>&1
+          ruff check . >> review.log 2>&1
           
           # Black
           echo -e "\n### Black Formatter" >> review.log
