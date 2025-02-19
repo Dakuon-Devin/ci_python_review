@@ -43,7 +43,7 @@ jobs:
           
           # Bandit
           echo -e "\n### Bandit Security Check" >> review.log
-          bandit -r -f custom -ll -i src/example/bad_code.py >> review.log 2>&1 || true
+          bandit -r -f txt --severity-level low src/example/bad_code.py >> review.log 2>&1 || true
       
       - name: Post review comment
         if: failure()
