@@ -25,100 +25,42 @@ jobs:
           python -m pip install --upgrade pip
           pip install ruff black mypy bandit
       
-      - name: Run Ruff linter
-        id: ruff
-        continue-on-error: true
+      - name: Run checks
         run: |
-          ruff check . > ruff_output.txt || true
+          echo "## Pythonコードレビュー結果" > review.log
           
-      - name: Run Black formatter check
-        id: black
-        continue-on-error: true
-        run: |
-          black --check . > black_output.txt 2>&1 || true
+          # Ruff
+          echo -e "\n### Ruff Linter" >> review.log
+          if ! ruff check . >> review.log 2>&1; then
+            echo "Ruff check failed"
+            exit_code=1
+          fi
           
-      - name: Run MyPy type checker
-        id: mypy
-        continue-on-error: true
-        run: |
-          mypy . > mypy_output.txt 2>&1 || true
+          # Black
+          echo -e "\n### Black Formatter" >> review.log
+          if ! black --check . >> review.log 2>&1; then
+            echo "Black check failed"
+            exit_code=1
+          fi
           
-      - name: Run Bandit security check
-        id: bandit
-        continue-on-error: true
-        run: |
-          bandit -r . -ll > bandit_output.txt 2>&1 || true
+          # MyPy
+          echo -e "\n### MyPy Type Checker" >> review.log
+          if ! mypy . >> review.log 2>&1; then
+            echo "MyPy check failed"
+            exit_code=1
+          fi
           
-      - name: Create review comments
-        if: always()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            
-            let hasErrors = false;
-            let reviewBody = '## Pythonコードレビュー結果\n\n';
-            
-            // Ruffの結果を確認
-            try {
-              const ruffOutput = fs.readFileSync('ruff_output.txt', 'utf8');
-              if (ruffOutput.trim()) {
-                hasErrors = true;
-                reviewBody += '### Ruff Linter\n```\n' + ruffOutput + '\n```\n\n';
-              }
-            } catch (e) {}
-            
-            // Blackの結果を確認
-            try {
-              const blackOutput = fs.readFileSync('black_output.txt', 'utf8');
-              if (blackOutput.includes('would reformat') || blackOutput.includes('Oh no!')) {
-                hasErrors = true;
-                reviewBody += '### Black Formatter\n```\n' + blackOutput + '\n```\n\n';
-              }
-            } catch (e) {}
-            
-            // MyPyの結果を確認
-            try {
-              const mypyOutput = fs.readFileSync('mypy_output.txt', 'utf8');
-              if (mypyOutput.trim()) {
-                hasErrors = true;
-                reviewBody += '### MyPy Type Checker\n```\n' + mypyOutput + '\n```\n\n';
-              }
-            } catch (e) {}
-            
-            // Banditの結果を確認
-            try {
-              const banditOutput = fs.readFileSync('bandit_output.txt', 'utf8');
-              if (banditOutput.includes('Issue:')) {
-                hasErrors = true;
-                reviewBody += '### Bandit Security Check\n```\n' + banditOutput + '\n```\n\n';
-              }
-            } catch (e) {}
-            
-            if (hasErrors) {
-              // レビューコメントを作成
-              await github.rest.pulls.createReview({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: context.issue.number,
-                body: reviewBody,
-                event: 'REQUEST_CHANGES'
-              });
-              
-              // ジョブを失敗として終了
-              process.exit(1);
-            } else {
-              // 問題がない場合は承認
-              await github.rest.pulls.createReview({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: context.issue.number,
-                body: '## Pythonコードレビュー結果\n\nすべてのチェックに合格しました！ ✨',
-                event: 'APPROVE'
-              });
-            }
+          # Bandit
+          echo -e "\n### Bandit Security Check" >> review.log
+          if ! bandit -r . -ll >> review.log 2>&1; then
+            echo "Bandit check failed"
+            exit_code=1
+          fi
+          
+          exit ${exit_code:-0}
+      
+      - name: Post review comment
+        if: failure()
+        run: gh pr comment --body-file review.log "${{ github.event.pull_request.html_url }}"
         env:
-          RUFF_ERROR: ${{ steps.ruff.outputs.error }}
-          BLACK_ERROR: ${{ steps.black.outputs.error }}
-          MYPY_ERROR: ${{ steps.mypy.outputs.error }}
-          BANDIT_ERROR: ${{ steps.bandit.outputs.error }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
