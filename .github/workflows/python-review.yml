@@ -25,39 +25,56 @@ jobs:
           python -m pip install --upgrade pip
           pip install ruff black mypy bandit
       
-      - name: Run Checks
-        id: run_checks
+      - name: Run Ruff
+        id: ruff
+        continue-on-error: true
         run: |
-          # Ruff
           echo "## Ruffによるコードスタイルチェック" > ruff.log
-          ruff check . >> ruff.log 2>&1 || echo "Ruff check failed"
+          ruff check . >> ruff.log 2>&1
 
-          # Black
-          echo -e "\n## Blackによるコードフォーマットチェック" > black.log
-          black --check --diff . >> black.log 2>&1 || echo "Black check failed"
+      - name: Run Black
+        id: black
+        continue-on-error: true
+        run: |
+          echo "## Blackによるコードフォーマットチェック" > black.log
+          black --check --diff . >> black.log 2>&1
 
-          # MyPy
-          echo -e "\n## MyPyによる型チェック" > mypy.log
-          mypy --show-error-codes --show-column-numbers --pretty src/example/bad_code.py >> mypy.log 2>&1 || echo "MyPy check failed"
+      - name: Run MyPy
+        id: mypy
+        continue-on-error: true
+        run: |
+          echo "## MyPyによる型チェック" > mypy.log
+          mypy --strict --show-error-codes --show-column-numbers --pretty src/example/bad_code.py >> mypy.log 2>&1
 
-          # Bandit
-          echo -e "\n## Banditによるセキュリティチェック" > bandit.log
-          bandit -r -f txt --severity-level low -ll src/example/bad_code.py >> bandit.log 2>&1 || echo "Bandit check failed"
+      - name: Run Bandit
+        id: bandit
+        continue-on-error: true
+        run: |
+          echo "## Banditによるセキュリティチェック" > bandit.log
+          bandit -r -f txt --severity-level low -ll -v src/example/bad_code.py >> bandit.log 2>&1
 
-          # Combine all reports with proper spacing
+      - name: Post Review Comment
+        if: always()
+        run: |
           {
             echo "# Pythonコードレビュー結果"
             echo ""
+            echo "## 1. Ruffによるコードスタイルチェック"
             cat ruff.log
             echo ""
+            echo "## 2. Blackによるコードフォーマットチェック"
             cat black.log
             echo ""
+            echo "## 3. MyPyによる型チェック"
             cat mypy.log
             echo ""
+            echo "## 4. Banditによるセキュリティチェック"
             cat bandit.log
           } > review.log
 
-          exit 1
+          gh pr comment --body-file review.log "${{ github.event.pull_request.html_url }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Post review comment
         if: failure()
