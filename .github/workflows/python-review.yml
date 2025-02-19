@@ -29,33 +29,37 @@ jobs:
         id: ruff
         continue-on-error: true
         run: |
-          echo "## Ruffによるコードスタイルチェック" > ruff.log
-          ruff check . >> ruff.log 2>&1
-          echo $? > ruff.exit_code
+          {
+            echo "## Ruffによるコードスタイルチェック"
+            ruff check . || echo $? > ruff.exit_code
+          } 2>&1 | tee ruff.log
 
       - name: Run Black
         id: black
         continue-on-error: true
         run: |
-          echo "## Blackによるコードフォーマットチェック" > black.log
-          black --check --diff . >> black.log 2>&1
-          echo $? > black.exit_code
+          {
+            echo "## Blackによるコードフォーマットチェック"
+            black --check --diff . || echo $? > black.exit_code
+          } 2>&1 | tee black.log
 
       - name: Run MyPy
         id: mypy
         continue-on-error: true
         run: |
-          echo "## MyPyによる型チェック" > mypy.log
-          mypy --strict --show-error-codes --show-column-numbers --pretty src/example/ >> mypy.log 2>&1
-          echo $? > mypy.exit_code
+          {
+            echo "## MyPyによる型チェック"
+            mypy --strict --show-error-codes --show-column-numbers --pretty src/example/ || echo $? > mypy.exit_code
+          } 2>&1 | tee mypy.log
 
       - name: Run Bandit
         id: bandit
         continue-on-error: true
         run: |
-          echo "## Banditによるセキュリティチェック" > bandit.log
-          bandit -r -f txt -ll src/example/ >> bandit.log 2>&1
-          echo $? > bandit.exit_code
+          {
+            echo "## Banditによるセキュリティチェック"
+            bandit -r -f txt -ll src/example/ || echo $? > bandit.exit_code
+          } 2>&1 | tee bandit.log
 
       - name: Post Review Comment
         if: always()
