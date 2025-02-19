@@ -27,15 +27,19 @@ jobs:
       
       - name: Run Ruff
         id: ruff
+        continue-on-error: true
         run: |
           echo "## Ruffによるコードスタイルチェック" > ruff.log
-          ruff check . >> ruff.log 2>&1 || exit 1
+          ruff check . >> ruff.log 2>&1
+          echo $? > ruff.exit_code
 
       - name: Run Black
         id: black
+        continue-on-error: true
         run: |
           echo "## Blackによるコードフォーマットチェック" > black.log
-          black --check --diff . >> black.log 2>&1 || exit 1
+          black --check --diff . >> black.log 2>&1
+          echo $? > black.exit_code
 
       - name: Run MyPy
         id: mypy
@@ -83,10 +87,12 @@ jobs:
       - name: Check Tool Results
         if: always()
         run: |
+          ruff_exit=$(cat ruff.exit_code || echo "0")
+          black_exit=$(cat black.exit_code || echo "0")
           mypy_exit=$(cat mypy.exit_code || echo "0")
           bandit_exit=$(cat bandit.exit_code || echo "0")
           
-          if [ "$mypy_exit" != "0" ] || [ "$bandit_exit" != "0" ]; then
+          if [ "$ruff_exit" != "0" ] || [ "$black_exit" != "0" ] || [ "$mypy_exit" != "0" ] || [ "$bandit_exit" != "0" ]; then
             echo "One or more checks failed"
             exit 1
           fi
