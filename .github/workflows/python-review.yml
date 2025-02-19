@@ -39,15 +39,19 @@ jobs:
 
       - name: Run MyPy
         id: mypy
+        continue-on-error: true
         run: |
           echo "## MyPyによる型チェック" > mypy.log
-          mypy --strict --show-error-codes --show-column-numbers --pretty src/example/ >> mypy.log 2>&1 || exit 1
+          mypy --strict --show-error-codes --show-column-numbers --pretty src/example/ >> mypy.log 2>&1
+          echo $? > mypy.exit_code
 
       - name: Run Bandit
         id: bandit
+        continue-on-error: true
         run: |
           echo "## Banditによるセキュリティチェック" > bandit.log
-          bandit -r -f txt -ll src/example/ >> bandit.log 2>&1 || exit 1
+          bandit -r -f txt -ll src/example/ >> bandit.log 2>&1
+          echo $? > bandit.exit_code
 
       - name: Post Review Comment
         if: always()
@@ -75,3 +79,14 @@ jobs:
           gh pr comment --body-file review.log "${{ github.event.pull_request.html_url }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check Tool Results
+        if: always()
+        run: |
+          mypy_exit=$(cat mypy.exit_code || echo "0")
+          bandit_exit=$(cat bandit.exit_code || echo "0")
+          
+          if [ "$mypy_exit" != "0" ] || [ "$bandit_exit" != "0" ]; then
+            echo "One or more checks failed"
+            exit 1
+          fi
