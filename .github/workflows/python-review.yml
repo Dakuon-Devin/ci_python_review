@@ -51,7 +51,7 @@ jobs:
         continue-on-error: true
         run: |
           echo "## Banditによるセキュリティチェック" > bandit.log
-          bandit -r -f txt --severity-level low src/example/bad_code.py >> bandit.log 2>&1
+          bandit -r -f txt -ll src/example/bad_code.py >> bandit.log 2>&1
 
       - name: Post Review Comment
         if: always()
