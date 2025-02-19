@@ -27,23 +27,20 @@ jobs:
       
       - name: Run checks
         run: |
-          echo "## Pythonコードレビュー結果" > review.log
+          # Initialize log files for each tool
+          echo "## Ruffによるコードスタイルチェック" > ruff.log
+          echo "## Blackによるコードフォーマットチェック" > black.log
+          echo "## MyPyによる型チェック" > mypy.log
+          echo "## Banditによるセキュリティチェック" > bandit.log
           
-          # Ruff
-          echo -e "\n### Ruff Linter" >> review.log
-          ruff check . >> review.log 2>&1
+          # Run each tool and capture output
+          ruff check . >> ruff.log 2>&1 || true
+          black --check --diff . >> black.log 2>&1 || true
+          mypy --show-error-codes --show-column-numbers --show-error-context src/example/bad_code.py >> mypy.log 2>&1 || true
+          bandit -r -f txt --severity-level low src/example/bad_code.py >> bandit.log 2>&1 || true
           
-          # Black
-          echo -e "\n### Black Formatter" >> review.log
-          black --check --diff . >> review.log 2>&1
-          
-          # MyPy
-          echo -e "\n### MyPy Type Checker" >> review.log
-          mypy --show-error-codes --show-column-numbers --show-error-context src/example/bad_code.py >> review.log 2>&1 || true
-          
-          # Bandit
-          echo -e "\n### Bandit Security Check" >> review.log
-          bandit -r -f txt --severity-level low src/example/bad_code.py >> review.log 2>&1 || true
+          # Combine all logs with separators
+          cat ruff.log black.log mypy.log bandit.log > review.log
       
       - name: Post review comment
         if: failure()
