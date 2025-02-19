@@ -25,22 +25,31 @@ jobs:
           python -m pip install --upgrade pip
           pip install ruff black mypy bandit
       
-      - name: Run checks
+      - name: Run Ruff
         run: |
-          # Initialize log files for each tool
           echo "## Ruffによるコードスタイルチェック" > ruff.log
-          echo "## Blackによるコードフォーマットチェック" > black.log
-          echo "## MyPyによる型チェック" > mypy.log
-          echo "## Banditによるセキュリティチェック" > bandit.log
-          
-          # Run each tool and capture output
           ruff check . >> ruff.log 2>&1 || true
+
+      - name: Run Black
+        run: |
+          echo "## Blackによるコードフォーマットチェック" > black.log
           black --check --diff . >> black.log 2>&1 || true
+
+      - name: Run MyPy
+        run: |
+          echo "## MyPyによる型チェック" > mypy.log
           mypy --show-error-codes --show-column-numbers --show-error-context src/example/bad_code.py >> mypy.log 2>&1 || true
+
+      - name: Run Bandit
+        run: |
+          echo "## Banditによるセキュリティチェック" > bandit.log
           bandit -r -f txt --severity-level low src/example/bad_code.py >> bandit.log 2>&1 || true
-          
-          # Combine all logs with separators
-          cat ruff.log black.log mypy.log bandit.log > review.log
+
+      - name: Combine Reports
+        run: |
+          echo "# Pythonコードレビュー結果" > review.log
+          echo "" >> review.log
+          cat ruff.log black.log mypy.log bandit.log >> review.log
       
       - name: Post review comment
         if: failure()
