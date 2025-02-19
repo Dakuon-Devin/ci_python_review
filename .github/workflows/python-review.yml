@@ -50,24 +50,24 @@ jobs:
           bandit -r -f txt -ll src/example/bad_code.py >> bandit.log 2>&1 || exit 1
 
       - name: Post Review Comment
-        if: success() || failure()
+        if: always()
         run: |
           {
             echo "# Pythonコードレビュー結果"
             echo ""
             echo "## 1. Ruffによるコードスタイルチェック"
-            cat ruff.log
+            cat ruff.log || echo "Ruffのチェックに失敗しました"
             echo ""
             echo "## 2. Blackによるコードフォーマットチェック"
-            cat black.log
+            cat black.log || echo "Blackのチェックに失敗しました"
             echo ""
             echo "## 3. MyPyによる型チェック"
-            cat mypy.log
+            cat mypy.log || echo "MyPyのチェックに失敗しました"
             echo ""
             echo "## 4. Banditによるセキュリティチェック"
-            cat bandit.log
+            cat bandit.log || echo "Banditのチェックに失敗しました"
             echo ""
-            if [ ${{ job.status }} == 'failure' ]; then
+            if [ "${{ job.status }}" = "failure" ]; then
               echo "⚠️ **CIチェックが失敗しました。上記の問題を修正してください。**"
             fi
           } > review.log
