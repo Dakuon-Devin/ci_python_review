@@ -39,11 +39,11 @@ jobs:
           
           # MyPy
           echo -e "\n### MyPy Type Checker" >> review.log
-          mypy --show-error-codes --show-column-numbers --no-error-summary src/example/bad_code.py >> review.log 2>&1 || echo "$?" >> review.log
+          mypy --show-error-codes --show-column-numbers --show-error-context src/example/bad_code.py >> review.log 2>&1 || true
           
           # Bandit
           echo -e "\n### Bandit Security Check" >> review.log
-          bandit -r -f txt --severity-level high src/example/bad_code.py >> review.log 2>&1 || echo "$?" >> review.log
+          bandit -r -f custom -ll -i src/example/bad_code.py >> review.log 2>&1 || true
       
       - name: Post review comment
         if: failure()
