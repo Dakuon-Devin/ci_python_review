@@ -31,19 +31,19 @@ jobs:
           
           # Ruff
           echo -e "\n### Ruff Linter" >> review.log
-          ruff check . >> review.log 2>&1
+          ruff check --format=text . >> review.log 2>&1
           
           # Black
           echo -e "\n### Black Formatter" >> review.log
-          black --check . >> review.log 2>&1
+          black --check --diff . >> review.log 2>&1
           
           # MyPy
           echo -e "\n### MyPy Type Checker" >> review.log
-          mypy . >> review.log 2>&1
+          mypy --show-error-codes --show-column-numbers --no-error-summary . >> review.log 2>&1
           
           # Bandit
           echo -e "\n### Bandit Security Check" >> review.log
-          bandit -r . -ll >> review.log 2>&1
+          bandit -r -f txt --severity-level low -ll . >> review.log 2>&1
       
       - name: Post review comment
         if: failure()
