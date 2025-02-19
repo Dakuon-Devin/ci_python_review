@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
+      contents: read
     
     steps:
       - uses: actions/checkout@v4
@@ -24,64 +25,28 @@ jobs:
           python -m pip install --upgrade pip
           pip install ruff black mypy bandit
       
-      - name: Run Ruff linter
-        id: ruff
-        run: ruff check .
+      - name: Run checks
+        run: |
+          echo "## Pythonコードレビュー結果" > review.log
+          
+          # Ruff
+          echo -e "\n### Ruff Linter" >> review.log
+          ruff check . >> review.log 2>&1
+          
+          # Black
+          echo -e "\n### Black Formatter" >> review.log
+          black --check . >> review.log 2>&1
+          
+          # MyPy
+          echo -e "\n### MyPy Type Checker" >> review.log
+          mypy . >> review.log 2>&1
+          
+          # Bandit
+          echo -e "\n### Bandit Security Check" >> review.log
+          bandit -r . -ll >> review.log 2>&1
       
-      - name: Run Black formatter check
-        id: black
-        run: black --check .
-      
-      - name: Run MyPy type checker
-        id: mypy
-        run: mypy .
-      
-      - name: Run Bandit security check
-        id: bandit
-        run: bandit -r . -ll
-      
-      - name: Create review comment
+      - name: Post review comment
         if: failure()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const path = require('path');
-            
-            let errors = [];
-            
-            try {
-              const ruffOutput = fs.readFileSync(path.join(process.env.GITHUB_WORKSPACE, 'ruff.log'), 'utf8');
-              errors.push('### Ruff Linter\n```\n' + ruffOutput + '\n```');
-            } catch (e) {}
-            
-            try {
-              const blackOutput = fs.readFileSync(path.join(process.env.GITHUB_WORKSPACE, 'black.log'), 'utf8');
-              errors.push('### Black Formatter\n```\n' + blackOutput + '\n```');
-            } catch (e) {}
-            
-            try {
-              const mypyOutput = fs.readFileSync(path.join(process.env.GITHUB_WORKSPACE, 'mypy.log'), 'utf8');
-              errors.push('### MyPy Type Checker\n```\n' + mypyOutput + '\n```');
-            } catch (e) {}
-            
-            try {
-              const banditOutput = fs.readFileSync(path.join(process.env.GITHUB_WORKSPACE, 'bandit.log'), 'utf8');
-              errors.push('### Bandit Security Check\n```\n' + banditOutput + '\n```');
-            } catch (e) {}
-            
-            if (errors.length > 0) {
-              const body = '## Pythonコードレビュー結果\n\n' + errors.join('\n\n');
-              await github.rest.pulls.createReview({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: context.issue.number,
-                body: body,
-                event: 'REQUEST_CHANGES'
-              });
-            }
+        run: gh pr comment --body-file review.log "${{ github.event.pull_request.html_url }}"
         env:
-          RUFF_ERROR: ${{ steps.ruff.outputs.error }}
-          BLACK_ERROR: ${{ steps.black.outputs.error }}
-          MYPY_ERROR: ${{ steps.mypy.outputs.error }}
-          BANDIT_ERROR: ${{ steps.bandit.outputs.error }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
